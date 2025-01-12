@@ -170,7 +170,7 @@ void CleanSDL(SDLStruct& sdl) {
 
 void InitGame(GameParameters& game) {
     game.quit = false;
-    game.length = 10; //beginer length 10 cubes
+    game.length = 20; //beginer length 10 cubes
     game.velocityX = 0;
     game.velocityY = 0;
 
@@ -233,7 +233,7 @@ void MoveSnake(GameParameters& game, GameTime& time, double delta) {
 
     // other parts movement
     for (int i = 1; i < game.length; i++) {
-        int historyIndex = i * (HISTORY_SIZE / game.length) /2; // divided - to have smooth snake
+        int historyIndex = i * (HISTORY_SIZE / game.length) ; // if /2 divided - to have smooth snake
         game.bodyX[i] = game.historyX[historyIndex];
         game.bodyY[i] = game.historyY[historyIndex];
     }
@@ -259,6 +259,45 @@ void Draw(SDLStruct& sdl, GameParameters& game, GameTime& time) {
     SDL_UpdateTexture(sdl.scrtex, NULL, sdl.screen->pixels, sdl.screen->pitch);
     SDL_RenderCopy(sdl.renderer, sdl.scrtex, NULL, NULL);
     SDL_RenderPresent(sdl.renderer);
+}
+
+bool Collision(const GameParameters& game) {
+    for (int i = 4; i < game.length; i++) {
+        if (fabs(game.bodyX[0] - game.bodyX[i]) <= CUBE_SIZE/2 && fabs(game.bodyY[0] - game.bodyY[i]) <= CUBE_SIZE/2) {
+            return true;
+        }
+    }
+    return false;
+}
+
+
+void GameOver(SDLStruct& sdl, GameParameters& game, GameTime& time) {
+    char text[128];
+    SDL_FillRect(sdl.screen, NULL, SDL_MapRGB(sdl.screen->format, 0x00, 0x00, 0x00));
+    sprintf(text, "Game Over! Press ESC to quit or N to start a new game");
+    DrawString(sdl.screen, SCREEN_WIDTH / 2 - strlen(text) * 8 / 2, GAME_HEIGHT / 2, text, sdl.charset);
+
+    SDL_UpdateTexture(sdl.scrtex, NULL, sdl.screen->pixels, sdl.screen->pitch);
+    SDL_RenderCopy(sdl.renderer, sdl.scrtex, NULL, NULL);
+    SDL_RenderPresent(sdl.renderer);
+
+    bool gameOver = true;
+    while (gameOver) {
+        SDL_Event event;
+        while (SDL_PollEvent(&event)) {
+            if (event.type == SDL_KEYDOWN) {
+                if (event.key.keysym.sym == SDLK_ESCAPE) {
+                    game.quit = true;
+                    gameOver = false;
+                }
+                else if (event.key.keysym.sym == 'n') {
+                    gameOver = false;
+                    InitGame(game);
+                    time = { 0, 0, 0, 0 };
+                }
+            }
+        }
+    }
 }
 
 
@@ -312,10 +351,9 @@ int main(int argc, char** argv) {
 
         MoveSnake(game, time, delta);
         Draw(sdl, game, time);
+        if (Collision(game) && game.bodyX[19] != SCREEN_WIDTH / 2) GameOver(sdl, game, time);
     }
 
     CleanSDL(sdl);
     return 0;
 }
-
-
