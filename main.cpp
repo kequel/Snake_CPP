@@ -13,9 +13,15 @@ extern "C" {
 
 #define GAME_HEIGHT 550
 
-#define CUBE_SIZE 10
+#define CUBE_SIZE 20
 #define MAX_SNAKE_LENGTH 50
 #define HISTORY_SIZE (MAX_SNAKE_LENGTH*10)
+#define SNAKE_SPEED 200.0 //200.0 min for full functionality
+#define MAX_SNAKE_SPEED 400.0
+#define SNAKE_SPEED_UP 0.1
+
+#define NEW_GAME_KEY 'n'
+#define END_GAME_KEY SDLK_ESCAPE
 
 struct SDLStruct {
     SDL_Window* window;
@@ -170,38 +176,62 @@ void CleanSDL(SDLStruct& sdl) {
 
 void InitGame(GameParameters& game) {
     game.quit = false;
-    game.length = 20; //beginer length 10 cubes
+    game.length = 20;
     game.velocityX = 0;
     game.velocityY = 0;
 
-    //starting positions 
     game.bodyX[0] = SCREEN_WIDTH / 2;
     game.bodyY[0] = SCREEN_HEIGHT / 2;
+
     for (int i = 1; i < game.length; i++) {
         game.bodyX[i] = game.bodyX[i - 1] + 20;
         game.bodyY[i] = game.bodyY[i - 1];
     }
 
-    //positions history
     for (int i = 0; i < HISTORY_SIZE; i++) {
         game.historyX[i] = game.bodyX[0];
         game.historyY[i] = game.bodyY[0];
     }
 }
 
-bool UserInput(GameParameters& game, SDL_Event& event) { //false - new game, true -default
+
+float GetSnakeSpeed(GameTime t) {
+    float s;
+    s = (t.worldTime * SNAKE_SPEED_UP * SNAKE_SPEED + SNAKE_SPEED);
+    if (s < MAX_SNAKE_SPEED) return s;
+    else return MAX_SNAKE_SPEED;
+}
+
+
+bool UserInput(GameParameters& game, SDL_Event& event) {
     if (event.type == SDL_KEYDOWN) {
-        if (event.key.keysym.sym == SDLK_ESCAPE) game.quit = true;
-        else if (event.key.keysym.sym == 'n') return false;
-        else if (event.key.keysym.sym == SDLK_UP) { game.velocityX = 0; game.velocityY = -200; }
-        else if (event.key.keysym.sym == SDLK_DOWN) { game.velocityX = 0; game.velocityY = 200; }
-        else if (event.key.keysym.sym == SDLK_LEFT) { game.velocityX = -200; game.velocityY = 0; }
-        else if (event.key.keysym.sym == SDLK_RIGHT) { game.velocityX = 200; game.velocityY = 0; }
+        if (event.key.keysym.sym == END_GAME_KEY) game.quit = true;
+        else if (event.key.keysym.sym == NEW_GAME_KEY) return false;
+        else if (event.key.keysym.sym == SDLK_UP && game.velocityY == 0) {
+            game.velocityX = 0;
+            game.velocityY = -1; 
+        }
+        else if (event.key.keysym.sym == SDLK_DOWN && game.velocityY == 0) {
+            game.velocityX = 0;
+            game.velocityY = 1; 
+        }
+        else if (event.key.keysym.sym == SDLK_LEFT && game.velocityX == 0) {
+            game.velocityX = -1;
+            game.velocityY = 0; 
+        }
+        else if (event.key.keysym.sym == SDLK_RIGHT && game.velocityX == 0) {
+            game.velocityX = 1;
+            game.velocityY = 0;
+        }
     }
     return true;
 }
 
+
 void MoveSnake(GameParameters& game, GameTime& time, double delta) {
+
+    float currentSpeed = GetSnakeSpeed(time);
+
     // history update(deleting useless elements)
     for (int i = HISTORY_SIZE - 1; i > 0; i--) {
         game.historyX[i] = game.historyX[i - 1];
@@ -212,28 +242,29 @@ void MoveSnake(GameParameters& game, GameTime& time, double delta) {
     game.historyY[0] = game.bodyY[0];
 
     // head movement
-    game.bodyX[0] += game.velocityX * delta;
-    game.bodyY[0] += game.velocityY * delta;
+    game.bodyX[0] += game.velocityX * currentSpeed * delta;
+    game.bodyY[0] += game.velocityY * currentSpeed * delta;
 
     // going right when reaching boarders
-    if (game.bodyX[0] <= CUBE_SIZE && game.bodyY[0] <= CUBE_SIZE) { game.velocityX = 200; game.velocityY = 0; }
-    else if (game.bodyX[0] >= SCREEN_WIDTH - CUBE_SIZE && game.bodyY[0] <= CUBE_SIZE) { game.velocityX = 0; game.velocityY = 200; }
-    else if (game.bodyX[0] >= SCREEN_WIDTH - CUBE_SIZE && game.bodyY[0] >= GAME_HEIGHT - CUBE_SIZE) { game.velocityX = -200; game.velocityY = 0; }
-    else if (game.bodyX[0] <= CUBE_SIZE && game.bodyY[0] >= GAME_HEIGHT - CUBE_SIZE) { game.velocityX = 0; game.velocityY = -200; }
-    else if (game.bodyX[0] <= CUBE_SIZE) { game.velocityX = 0; game.velocityY = -200; }
-    else if (game.bodyX[0] >= SCREEN_WIDTH - CUBE_SIZE) { game.velocityX = 0; game.velocityY = 200; }
-    else if (game.bodyY[0] <= CUBE_SIZE) { game.velocityX = 200; game.velocityY = 0; }
-    else if (game.bodyY[0] >= GAME_HEIGHT - CUBE_SIZE) { game.velocityX = -200; game.velocityY = 0; }
+    if (game.bodyX[0] <= CUBE_SIZE && game.bodyY[0] <= CUBE_SIZE) { game.velocityX = 1; game.velocityY = 0; }
+    else if (game.bodyX[0] >= SCREEN_WIDTH - CUBE_SIZE && game.bodyY[0] <= CUBE_SIZE) { game.velocityX = 0; game.velocityY = 1; }
+    else if (game.bodyX[0] >= SCREEN_WIDTH - CUBE_SIZE && game.bodyY[0] >= GAME_HEIGHT - CUBE_SIZE) { game.velocityX = -1; game.velocityY = 0; }
+    else if (game.bodyX[0] <= CUBE_SIZE && game.bodyY[0] >= GAME_HEIGHT - CUBE_SIZE) { game.velocityX = 0; game.velocityY = -1; }
+    else if (game.bodyX[0] <= CUBE_SIZE) { game.velocityX = 0; game.velocityY = -1; }
+    else if (game.bodyX[0] >= SCREEN_WIDTH - CUBE_SIZE) { game.velocityX = 0; game.velocityY = 1; }
+    else if (game.bodyY[0] <= CUBE_SIZE) { game.velocityX = 1;  game.velocityY = 0; }
+    else if (game.bodyY[0] >= GAME_HEIGHT - CUBE_SIZE) { game.velocityX = -1; game.velocityY = 0; }
 
     // going to the other side when reaching boarders
     //if (bodyX[0] < 0) bodyX[0] = SCREEN_WIDTH;
     //else if (bodyX[0] > SCREEN_WIDTH) bodyX[0] = 0;
     //if (bodyY[0] < 0) bodyY[0] = GAME_HEIGHT;
     //else if (bodyY[0] > GAME_HEIGHT) bodyY[0] = 0;
-
     // other parts movement
     for (int i = 1; i < game.length; i++) {
-        int historyIndex = i * (HISTORY_SIZE / game.length) ; // if /2 divided - to have smooth snake
+        float s = (time.worldTime * SNAKE_SPEED_UP + 1);
+        if (s > MAX_SNAKE_SPEED/SNAKE_SPEED) s= (MAX_SNAKE_SPEED / SNAKE_SPEED);
+        int historyIndex = i * (HISTORY_SIZE / game.length)/s;
         game.bodyX[i] = game.historyX[historyIndex];
         game.bodyY[i] = game.historyY[historyIndex];
     }
@@ -251,9 +282,11 @@ void Draw(SDLStruct& sdl, GameParameters& game, GameTime& time) {
 
     // Updates 
     DrawRectangle(sdl.screen, 4, GAME_HEIGHT + 4, SCREEN_WIDTH - 8, 36, SDL_MapRGB(sdl.screen->format, 0xFF, 0x00, 0x00), SDL_MapRGB(sdl.screen->format, 0x11, 0x11, 0xCC));
-    sprintf(text, "Elapsed time = %.1lf s  %.0lf FPS", time.worldTime, time.fps);
+    float s = (time.worldTime * SNAKE_SPEED_UP + 1);
+    if (s > MAX_SNAKE_SPEED/SNAKE_SPEED) s = MAX_SNAKE_SPEED/SNAKE_SPEED;
+    sprintf(text, "Elapsed time = %.1lfs  %.0lfFPS  Speed: %.1lfx", time.worldTime, time.fps, s);
     DrawString(sdl.screen, sdl.screen->w / 2 - strlen(text) * 8 / 2, GAME_HEIGHT + 10, text, sdl.charset);
-    sprintf(text, "Esc - exit, Arrow keys - move");
+    sprintf(text, "Esc - exit, N - new game, Arrow keys - move");
     DrawString(sdl.screen, sdl.screen->w / 2 - strlen(text) * 8 / 2, GAME_HEIGHT + 26, text, sdl.charset);
 
     SDL_UpdateTexture(sdl.scrtex, NULL, sdl.screen->pixels, sdl.screen->pitch);
@@ -263,7 +296,7 @@ void Draw(SDLStruct& sdl, GameParameters& game, GameTime& time) {
 
 bool Collision(const GameParameters& game) {
     for (int i = 4; i < game.length; i++) {
-        if (fabs(game.bodyX[0] - game.bodyX[i]) <= CUBE_SIZE/2 && fabs(game.bodyY[0] - game.bodyY[i]) <= CUBE_SIZE/2) {
+        if (fabs(game.bodyX[0] - game.bodyX[i]) <= CUBE_SIZE / 2 && fabs(game.bodyY[0] - game.bodyY[i]) <= CUBE_SIZE / 2) {
             return true;
         }
     }
@@ -286,11 +319,11 @@ void GameOver(SDLStruct& sdl, GameParameters& game, GameTime& time) {
         SDL_Event event;
         while (SDL_PollEvent(&event)) {
             if (event.type == SDL_KEYDOWN) {
-                if (event.key.keysym.sym == SDLK_ESCAPE) {
+                if (event.key.keysym.sym == END_GAME_KEY) {
                     game.quit = true;
                     gameOver = false;
                 }
-                else if (event.key.keysym.sym == 'n') {
+                else if (event.key.keysym.sym == NEW_GAME_KEY) {
                     gameOver = false;
                     InitGame(game);
                     time = { 0, 0, 0, 0 };
@@ -319,7 +352,6 @@ int main(int argc, char** argv) {
         time.worldTime += delta;
         time.fpsTimer += delta;
         time.frames++;
-
         if (time.fpsTimer > 0.5) {
             time.fps = time.frames * 2;
             time.frames = 0;
@@ -348,7 +380,6 @@ int main(int argc, char** argv) {
                 }
             }
         }
-
         MoveSnake(game, time, delta);
         Draw(sdl, game, time);
         if (Collision(game) && game.bodyX[19] != SCREEN_WIDTH / 2) GameOver(sdl, game, time);
