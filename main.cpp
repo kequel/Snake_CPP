@@ -363,6 +363,7 @@ void MoveSnake(Snake& s, GameTime& time, double delta) {
         float speed = (time.snakeTime * SNAKE_SPEED_UP + 1);
         if (speed > MAX_SNAKE_SPEED / SNAKE_SPEED) speed = (MAX_SNAKE_SPEED / SNAKE_SPEED);
         int historyIndex = i * (HISTORY_SIZE / CUBE_SIZE) / speed;
+        if (historyIndex >= HISTORY_SIZE) historyIndex = HISTORY_SIZE - 1;
         s.bodyX[i] = s.historyX[historyIndex];
         s.bodyY[i] = s.historyY[historyIndex];
     }
