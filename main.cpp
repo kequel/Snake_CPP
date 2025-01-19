@@ -1,3 +1,4 @@
+
 #define _USE_MATH_DEFINES
 #include <math.h>
 #include <stdio.h>
@@ -302,7 +303,7 @@ void RedDotCollision(Snake& s, Dot& r, GameTime& t) {
     if (r.visible && fabs(s.bodyX[0] - r.x) <= CUBE_SIZE && fabs(s.bodyY[0] - r.y) <= CUBE_SIZE) {
 
         s.eaten++;
-       
+
         if (rand() % 2 && s.length >= 10) {
             s.length = s.length - 5;
         }
@@ -390,14 +391,14 @@ void Draw(SDLStruct& sdl, Snake& s, Dot& b, Dot& r, GameTime& time) {
 
     // Updates 
     DrawRectangle(sdl.screen, 4, GAME_HEIGHT + 4, SCREEN_WIDTH - 8, 36, SDL_MapRGB(sdl.screen->format, 0xFF, 0x00, 0x00), SDL_MapRGB(sdl.screen->format, 0x11, 0x11, 0xCC));
-    sprintf(text, "Elapsed time = %.1lfs  %.0lfFPS  Speed: %.1lfx  Length:%d  Points:%d", time.worldTime, time.fps, (s.speed/SNAKE_SPEED), s.length, s.eaten);
+    sprintf(text, "Elapsed time = %.1lfs  %.0lfFPS  Speed: %.1lfx  Length:%d  Points:%d", time.worldTime, time.fps, (s.speed / SNAKE_SPEED), s.length, s.eaten);
     DrawString(sdl.screen, sdl.screen->w / 2 - strlen(text) * 8 / 2, GAME_HEIGHT + 10, text, sdl.charset);
     sprintf(text, "Esc - exit, N - new game, Arrow keys - move");
     DrawString(sdl.screen, sdl.screen->w / 2 - strlen(text) * 8 / 2, GAME_HEIGHT + 26, text, sdl.charset);
 
     DrawRectangle(sdl.screen, 4, GAME_HEIGHT + 46, SCREEN_WIDTH - 8, 18, SDL_MapRGB(sdl.screen->format, 0xFF, 0x00, 0x00), SDL_MapRGB(sdl.screen->format, 0x11, 0x11, 0xCC));
     int count = (int)(time.worldTime - r.spawnTime);
-    if(r.visible) DrawRectangle(sdl.screen, 4, GAME_HEIGHT + 46, count*(SCREEN_WIDTH - 8)/r.duration , 18, SDL_MapRGB(sdl.screen->format, 0xFF, 0x00, 0x00), SDL_MapRGB(sdl.screen->format, 0xFF, 0x00, 0x00));
+    if (r.visible) DrawRectangle(sdl.screen, 4, GAME_HEIGHT + 46, count * (SCREEN_WIDTH - 8) / r.duration, 18, SDL_MapRGB(sdl.screen->format, 0xFF, 0x00, 0x00), SDL_MapRGB(sdl.screen->format, 0xFF, 0x00, 0x00));
     SDL_UpdateTexture(sdl.scrtex, NULL, sdl.screen->pixels, sdl.screen->pitch);
     SDL_RenderCopy(sdl.renderer, sdl.scrtex, NULL, NULL);
     SDL_RenderPresent(sdl.renderer);
@@ -452,6 +453,18 @@ void GameOver(bool* quit, SDLStruct& sdl, Snake& s, Dot& b, Dot& r, GameTime& ti
     }
 }
 
+void UpdateTime(GameTime& time, double delta) {
+    time.worldTime += delta;
+    time.snakeTime += delta;
+    time.fpsTimer += delta;
+    time.frames++;
+    if (time.fpsTimer > 0.5) {
+        time.fps = time.frames * 2;
+        time.frames = 0;
+        time.fpsTimer -= 0.5;
+    }
+}
+
 
 int main(int argc, char** argv) {
     SDLStruct sdl;
@@ -469,17 +482,7 @@ int main(int argc, char** argv) {
         int t2 = SDL_GetTicks();
         double delta = (t2 - t1) * 0.001;
         t1 = t2;
-
-        time.worldTime += delta;
-        time.snakeTime += delta;
-        time.fpsTimer += delta;
-        time.frames++;
-        if (time.fpsTimer > 0.5) {
-            time.fps = time.frames * 2;
-            time.frames = 0;
-            time.fpsTimer -= 0.5;
-        }
-
+        UpdateTime(time, delta);
         SpawnRedDot(redDot, time);
 
         SDL_Event event;
@@ -492,17 +495,7 @@ int main(int argc, char** argv) {
                 int t1 = SDL_GetTicks();
                 double delta = (t2 - t1) * 0.001;
                 t1 = t2;
-
-                time.worldTime += delta;
-                time.snakeTime += delta;
-                time.fpsTimer += delta;
-                time.frames++;
-
-                if (time.fpsTimer > 0.5) {
-                    time.fps = time.frames * 2;
-                    time.frames = 0;
-                    time.fpsTimer -= 0.5;
-                }
+                UpdateTime(time, delta);
             }
         }
         MoveSnake(snake, time, delta);
