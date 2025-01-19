@@ -268,6 +268,7 @@ float GetSnakeSpeed(GameTime t, Snake& s) {
         t.snakeLimitTime = t.snakeTime;
         s.speed = MAX_SNAKE_SPEED;
     }
+    if (s.speed < SNAKE_SPEED) s.speed = SNAKE_SPEED;
     return s.speed;
 }
 
