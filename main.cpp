@@ -18,6 +18,7 @@ extern "C" {
 #define SNAKE_LENGTH 5 //initial snake length, can not be lower than 5, multiplier of five
 #define MAX_SNAKE_LENGTH 50 //can not be lower than 5, multiplier of five
 #define HISTORY_SIZE (MAX_SNAKE_LENGTH*CUBE_SIZE)
+#define SNAKE_EXTEND 5 //how much snakes extends/shorten if it eats a dot, should be lower than SNAKE_LENGTH
 
 #define SNAKE_SPEED 200.0 //begining speed, must be minimum 200.0 for functionality
 #define MAX_SNAKE_SPEED 600.0
@@ -26,6 +27,7 @@ extern "C" {
 
 #define DOT_RADIUS 10 //dot size 
 #define RED_DOT_FREQUENCY 5 // minimum 0, maximum 10000 - lover=less frequent
+#define POINTS_FOR_A_DOT 1 //points that player gets if snake eats a dot, must be >=0
 
 #define NEW_GAME_KEY 'n'
 #define END_GAME_KEY SDLK_ESCAPE
@@ -294,9 +296,9 @@ bool UserInput(bool* quit, Snake& s, SDL_Event& event) {
 
 void BlueDotCollision(Snake& s, Dot& b) {
     if (abs((int)s.bodyX[0] - b.x) <= CUBE_SIZE && abs((int)s.bodyY[0] - b.y) <= CUBE_SIZE) {
-        s.eaten++;
-        if (s.length < MAX_SNAKE_LENGTH) {
-            s.length = s.length + 5;
+        s.eaten=s.eaten+POINTS_FOR_A_DOT;
+        if (s.length+SNAKE_EXTEND <= MAX_SNAKE_LENGTH) {
+            s.length = s.length + SNAKE_EXTEND;
         }
         bool okPos;
         do {
@@ -317,9 +319,9 @@ void BlueDotCollision(Snake& s, Dot& b) {
 
 void RedDotCollision(Snake& s, Dot& r, GameTime& t) {
     if (r.visible && fabs(s.bodyX[0] - r.x) <= CUBE_SIZE && fabs(s.bodyY[0] - r.y) <= CUBE_SIZE) {
-        s.eaten++;
-        if (rand() % 2 && s.length >= 10) {
-            s.length = s.length - 5;
+        s.eaten=s.eaten+POINTS_FOR_A_DOT;
+        if (rand() % 2 && s.length >= SNAKE_LENGTH) {
+            s.length = s.length - SNAKE_EXTEND;
         }
         else if (s.speed > SNAKE_SPEED && t.snakeTime > SNAKE_SPEED_DOWN) {
             if (s.speed == MAX_SNAKE_SPEED) {
@@ -330,7 +332,7 @@ void RedDotCollision(Snake& s, Dot& r, GameTime& t) {
             }
             else t.snakeTime = t.snakeTime - SNAKE_SPEED_DOWN;
         }
-        else if (s.length >= 10) s.length = s.length - 5;
+        else if (s.length >= SNAKE_LENGTH) s.length = s.length - SNAKE_EXTEND;
         r.visible = false;
     }
     else if (r.visible && (t.worldTime - r.spawnTime > r.duration)) {
@@ -404,7 +406,7 @@ void Draw(SDLStruct& sdl, Snake& s, Dot& b, Dot& r, GameTime& time) {
     DrawRectangle(sdl.screen, 4, GAME_HEIGHT + 4, SCREEN_WIDTH - 8, 36, SDL_MapRGB(sdl.screen->format, 0xFF, 0x00, 0x00), SDL_MapRGB(sdl.screen->format, 0x11, 0x11, 0xCC));
     sprintf(text, "Elapsed time = %.1lfs  %.0lfFPS  Speed: %.1lfx  Length:%d  Points:%d", time.worldTime, time.fps, (s.speed / SNAKE_SPEED), s.length, s.eaten);
     DrawString(sdl.screen, sdl.screen->w / 2 - strlen(text) * 8 / 2, GAME_HEIGHT + 10, text, sdl.charset);
-    sprintf(text, "Esc - exit, N - new game, Arrow keys - move");
+    sprintf(text, "Esc - exit, N - new game, Arrow keys - move, implemented: 1234ABCDFG");
     DrawString(sdl.screen, sdl.screen->w / 2 - strlen(text) * 8 / 2, GAME_HEIGHT + 26, text, sdl.charset);
 
     DrawRectangle(sdl.screen, 4, GAME_HEIGHT + 46, SCREEN_WIDTH - 8, 18, SDL_MapRGB(sdl.screen->format, 0xFF, 0x00, 0x00), SDL_MapRGB(sdl.screen->format, 0x11, 0x11, 0xCC));
