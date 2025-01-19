@@ -79,8 +79,6 @@ struct GameTime {
     double snakeLimitTime;
 };
 
-
-// Funkcja rysująca napis na powierzchni
 void DrawString(SDL_Surface* screen, int x, int y, const char* text, SDL_Surface* charset) {
     int px, py, c;
     SDL_Rect s, d;
@@ -102,7 +100,6 @@ void DrawString(SDL_Surface* screen, int x, int y, const char* text, SDL_Surface
     };
 }
 
-// Funkcja rysująca powierzchnię (sprite) na ekranie
 void DrawSurface(SDL_Surface* screen, SDL_Surface* sprite, int x, int y) {
     SDL_Rect dest;
     dest.x = x - sprite->w / 2;
@@ -112,14 +109,12 @@ void DrawSurface(SDL_Surface* screen, SDL_Surface* sprite, int x, int y) {
     SDL_BlitSurface(sprite, NULL, screen, &dest);
 }
 
-// Funkcja rysująca pojedynczy piksel
 void DrawPixel(SDL_Surface* surface, int x, int y, Uint32 color) {
     int bpp = surface->format->BytesPerPixel;
     Uint8* p = (Uint8*)surface->pixels + y * surface->pitch + x * bpp;
     *(Uint32*)p = color;
 }
 
-// Funkcja rysująca linię
 void DrawLine(SDL_Surface* screen, int x, int y, int l, int dx, int dy, Uint32 color) {
     for (int i = 0; i < l; i++) {
         DrawPixel(screen, x, y, color);
@@ -128,7 +123,6 @@ void DrawLine(SDL_Surface* screen, int x, int y, int l, int dx, int dy, Uint32 c
     };
 }
 
-// Funkcja rysująca prostokąt
 void DrawRectangle(SDL_Surface* screen, int x, int y, int l, int k, Uint32 outlineColor, Uint32 fillColor) {
     int i;
     DrawLine(screen, x, y, k, 0, 1, outlineColor);
@@ -139,18 +133,22 @@ void DrawRectangle(SDL_Surface* screen, int x, int y, int l, int k, Uint32 outli
         DrawLine(screen, x + 1, i, l - 2, 1, 0, fillColor);
 }
 
-void DrawDot(SDL_Surface* surface, int cx, int cy, Uint32 color) {
-    if (cx != NULL && cy != NULL) {
-        for (int y = -DOT_RADIUS; y <= DOT_RADIUS; y++) {
-            for (int x = -DOT_RADIUS; x <= DOT_RADIUS; x++) {
-                if (x * x + y * y <= DOT_RADIUS * DOT_RADIUS) { // Check if the point is inside the circle
-                    DrawPixel(surface, cx + x, cy + y, color);
+void DrawDot(SDL_Surface* surface, Dot& d, GameTime& time) {
+    int t = (((int)time.worldTime) % DOT_RADIUS);
+    if (t > (DOT_RADIUS / 2)) {
+        t = DOT_RADIUS - t;
+    }
+    int radius = DOT_RADIUS / 2 + t;
+    if (d.x != NULL && d.y != NULL) {
+        for (int y = -radius; y <= radius; y++) {
+            for (int x = -radius; x <= radius; x++) {
+                if (x * x + y * y <= radius * radius) { //inside the circle
+                    DrawPixel(surface, d.x + x, d.y + y, d.color);
                 }
             }
         }
     }
 }
-
 
 #ifdef __cplusplus
 extern "C"
@@ -309,9 +307,7 @@ void BlueDotCollision(Snake& s, Dot& b) {
 
 void RedDotCollision(Snake& s, Dot& r, GameTime& t) {
     if (r.visible && fabs(s.bodyX[0] - r.x) <= CUBE_SIZE && fabs(s.bodyY[0] - r.y) <= CUBE_SIZE) {
-
         s.eaten++;
-
         if (rand() % 2 && s.length >= 10) {
             s.length = s.length - 5;
         }
@@ -333,11 +329,8 @@ void RedDotCollision(Snake& s, Dot& r, GameTime& t) {
 }
 
 
-
 void MoveSnake(Snake& s, GameTime& time, double delta) {
-
     float currentSpeed = GetSnakeSpeed(time, s);
-
     // history update(deleting useless elements)
     for (int i = HISTORY_SIZE - 1; i > 0; i--) {
         s.historyX[i] = s.historyX[i - 1];
@@ -366,7 +359,7 @@ void MoveSnake(Snake& s, GameTime& time, double delta) {
     //else if (bodyX[0] > SCREEN_WIDTH) bodyX[0] = 0;
     //if (bodyY[0] < 0) bodyY[0] = GAME_HEIGHT;
     //else if (bodyY[0] > GAME_HEIGHT) bodyY[0] = 0;
-    // 
+   
     // other parts movement
     for (int i = 1; i < s.length; i++) {
         float speed = (time.snakeTime * SNAKE_SPEED_UP + 1);
@@ -378,9 +371,9 @@ void MoveSnake(Snake& s, GameTime& time, double delta) {
     }
 }
 
+
 void Draw(SDLStruct& sdl, Snake& s, Dot& b, Dot& r, GameTime& time) {
     char text[128];
-
     SDL_FillRect(sdl.screen, NULL, SDL_MapRGB(sdl.screen->format, 0x00, 0x00, 0x00));
 
     // Snake
@@ -389,13 +382,10 @@ void Draw(SDLStruct& sdl, Snake& s, Dot& b, Dot& r, GameTime& time) {
     }
 
     //blueDot 
-    DrawDot(sdl.screen, b.x, b.y, b.color);
+    DrawDot(sdl.screen, b, time);
 
     //redDot
-    if (r.visible) {
-        DrawDot(sdl.screen, r.x, r.y, r.color);
-
-    }
+    if (r.visible) DrawDot(sdl.screen, r, time);
 
     // Updates 
     DrawRectangle(sdl.screen, 4, GAME_HEIGHT + 4, SCREEN_WIDTH - 8, 36, SDL_MapRGB(sdl.screen->format, 0xFF, 0x00, 0x00), SDL_MapRGB(sdl.screen->format, 0x11, 0x11, 0xCC));
@@ -412,6 +402,7 @@ void Draw(SDLStruct& sdl, Snake& s, Dot& b, Dot& r, GameTime& time) {
     SDL_RenderPresent(sdl.renderer);
 }
 
+
 bool Collision(Snake& s) {
     for (int i = 4; i < s.length; i++) {
         if (fabs(s.bodyX[0] - s.bodyX[i]) <= CUBE_SIZE / 2 && fabs(s.bodyY[0] - s.bodyY[i]) <= CUBE_SIZE / 2) {
@@ -420,6 +411,7 @@ bool Collision(Snake& s) {
     }
     return false;
 }
+
 
 void SpawnRedDot(Dot& r, Snake& s, GameTime t) {
     if (!r.visible && (rand() % 10000 <= RED_DOT_FREQUENCY)) {
@@ -440,7 +432,6 @@ void SpawnRedDot(Dot& r, Snake& s, GameTime t) {
         r.spawnTime = t.worldTime;
         r.visible = true;
     }
-
 }
 
 int ConvertToInt(char* line) {
@@ -454,6 +445,7 @@ int ConvertToInt(char* line) {
     }
     return x;
 }
+
 
 void DisplayBestScores(SDLStruct& sdl, char bestNames[NUM_BEST_SCORES][MAX_NAME_LENGTH], int bestScores[NUM_BEST_SCORES]) {
     char text[128];
@@ -472,6 +464,7 @@ void DisplayBestScores(SDLStruct& sdl, char bestNames[NUM_BEST_SCORES][MAX_NAME_
     SDL_RenderPresent(sdl.renderer);
 }
 
+
 void LoadBestScores(char bestNames[NUM_BEST_SCORES][MAX_NAME_LENGTH], int bestScores[NUM_BEST_SCORES]) {
     FILE* file = fopen(BEST_SCORES_FILE, "r");
     char line[20];
@@ -489,6 +482,7 @@ void LoadBestScores(char bestNames[NUM_BEST_SCORES][MAX_NAME_LENGTH], int bestSc
     }
     fclose(file);
 }
+
 
 void NameView(SDLStruct& sdl, char playerName[MAX_NAME_LENGTH], char text[128]) {
     SDL_FillRect(sdl.screen, NULL, SDL_MapRGB(sdl.screen->format, 0x00, 0x00, 0x00));
@@ -528,6 +522,7 @@ void GetName(SDLStruct& sdl, char playerName[MAX_NAME_LENGTH]) {
     SDL_StopTextInput();
 }
 
+
 void UpdateBestScores(SDLStruct& sdl, int currentScore, char bestNames[NUM_BEST_SCORES][MAX_NAME_LENGTH], int bestScores[NUM_BEST_SCORES], char playerName[MAX_NAME_LENGTH]) {
     int position = -1;
     //find position
@@ -558,6 +553,7 @@ void UpdateBestScores(SDLStruct& sdl, int currentScore, char bestNames[NUM_BEST_
     }
 }
 
+
 void GameOver(bool* quit, SDLStruct& sdl, Snake& s, Dot& b, Dot& r, GameTime& time) {
     char bestNames[NUM_BEST_SCORES][MAX_NAME_LENGTH] = { "" };
     int bestScores[NUM_BEST_SCORES] = { 0 };
@@ -573,7 +569,6 @@ void GameOver(bool* quit, SDLStruct& sdl, Snake& s, Dot& b, Dot& r, GameTime& ti
     bool enterClicked = false;
     while (!enterClicked) {
         DisplayBestScores(sdl, bestNames, bestScores);
-
         SDL_Event event;
         while (SDL_PollEvent(&event)) {
             if (event.type == SDL_KEYDOWN && event.key.keysym.sym == SDLK_RETURN) {
@@ -609,6 +604,7 @@ void GameOver(bool* quit, SDLStruct& sdl, Snake& s, Dot& b, Dot& r, GameTime& ti
         }
     }
 }
+
 
 void UpdateTime(GameTime& time, double delta) {
     time.worldTime += delta;
@@ -661,9 +657,6 @@ int main(int argc, char** argv) {
         BlueDotCollision(snake, blueDot);
         RedDotCollision(snake, redDot, time);
     }
-
     CleanSDL(sdl);
     return 0;
 }
-
-
