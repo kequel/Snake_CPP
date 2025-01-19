@@ -298,8 +298,8 @@ bool UserInput(bool* quit, Snake& s, SDL_Event& event) {
 
 void BlueDotCollision(Snake& s, Dot& b) {
     if (abs((int)s.bodyX[0] - b.x) <= CUBE_SIZE && abs((int)s.bodyY[0] - b.y) <= CUBE_SIZE) {
-        s.eaten=s.eaten+POINTS_FOR_A_DOT;
-        if (s.length+SNAKE_EXTEND <= MAX_SNAKE_LENGTH) {
+        s.eaten = s.eaten + POINTS_FOR_A_DOT;
+        if (s.length + SNAKE_EXTEND <= MAX_SNAKE_LENGTH) {
             s.length = s.length + SNAKE_EXTEND;
         }
         bool okPos;
@@ -321,7 +321,7 @@ void BlueDotCollision(Snake& s, Dot& b) {
 
 void RedDotCollision(Snake& s, Dot& r, GameTime& t) {
     if (r.visible && fabs(s.bodyX[0] - r.x) <= CUBE_SIZE && fabs(s.bodyY[0] - r.y) <= CUBE_SIZE) {
-        s.eaten=s.eaten+POINTS_FOR_A_DOT;
+        s.eaten = s.eaten + POINTS_FOR_A_DOT;
         if (rand() % 2 && s.length > SNAKE_LENGTH) {
             s.length = s.length - SNAKE_EXTEND;
         }
@@ -342,18 +342,21 @@ void RedDotCollision(Snake& s, Dot& r, GameTime& t) {
     }
 }
 
+void UpdateHistory(Snake& s, GameTime& time) {
+    for (int i = HISTORY_SIZE - 1; i > 0; i--) {
+        s.historyX[i] = s.historyX[i - 1];
+        s.historyY[i] = s.historyY[i - 1];
+    }
+    s.historyX[0] = s.bodyX[0];
+    s.historyY[0] = s.bodyY[0];
+    time.lastHistoryUpdate = time.worldTime;
+}
 
 void MoveSnake(Snake& s, GameTime& time, double delta) {
     float currentSpeed = GetSnakeSpeed(time, s);
 
-    if (time.worldTime - time.lastHistoryUpdate >= HISTORY_UPDATE_INTERVAL) {
-        for (int i = HISTORY_SIZE - 1; i > 0; i--) {
-            s.historyX[i] = s.historyX[i - 1];
-            s.historyY[i] = s.historyY[i - 1];
-        }
-        s.historyX[0] = s.bodyX[0];
-        s.historyY[0] = s.bodyY[0];
-        time.lastHistoryUpdate = time.worldTime;
+    if (time.worldTime - time.lastHistoryUpdate >= HISTORY_UPDATE_INTERVAL || time.worldTime<=time.lastHistoryUpdate) {
+        UpdateHistory(s, time);
     }
 
     // head movement
@@ -375,12 +378,12 @@ void MoveSnake(Snake& s, GameTime& time, double delta) {
     //else if (bodyX[0] > SCREEN_WIDTH) bodyX[0] = 0;
     //if (bodyY[0] < 0) bodyY[0] = GAME_HEIGHT;
     //else if (bodyY[0] > GAME_HEIGHT) bodyY[0] = 0;
-   
+
     // other parts movement
     for (int i = 1; i < s.length; i++) {
         float speed = (time.snakeTime * SNAKE_SPEED_UP + 1);
         if (speed > MAX_SNAKE_SPEED / SNAKE_SPEED) speed = (MAX_SNAKE_SPEED / SNAKE_SPEED);
-        int historyIndex =  i * CUBE_SIZE /speed;
+        int historyIndex = i * CUBE_SIZE / speed;
         if (historyIndex >= HISTORY_SIZE) historyIndex = HISTORY_SIZE - 1;
         s.bodyX[i] = s.historyX[historyIndex];
         s.bodyY[i] = s.historyY[historyIndex];
@@ -394,11 +397,11 @@ void Draw(SDLStruct& sdl, Snake& s, Dot& b, Dot& r, GameTime& time) {
 
     // Snake
     DrawSurface(sdl.screen, sdl.head, (int)s.bodyX[0], (int)s.bodyY[0]);
-    for (int i = 1; i < s.length-1; i++) {
-        if(i%2) DrawSurface(sdl.screen, sdl.body, (int)s.bodyX[i], (int)s.bodyY[i]);
+    for (int i = 1; i < s.length - 1; i++) {
+        if (i % 2) DrawSurface(sdl.screen, sdl.body, (int)s.bodyX[i], (int)s.bodyY[i]);
         else DrawSurface(sdl.screen, sdl.body2, (int)s.bodyX[i], (int)s.bodyY[i]);
     }
-    DrawSurface(sdl.screen, sdl.tail, (int)s.bodyX[s.length-1], (int)s.bodyY[s.length-1]);
+    DrawSurface(sdl.screen, sdl.tail, (int)s.bodyX[s.length - 1], (int)s.bodyY[s.length - 1]);
 
     //blueDot 
     DrawDot(sdl.screen, b, time);
@@ -499,7 +502,7 @@ void LoadBestScores(char bestNames[NUM_BEST_SCORES][MAX_NAME_LENGTH], int bestSc
             count++;
         }
         else {
-            break; 
+            break;
         }
     }
     fclose(file);
@@ -640,6 +643,7 @@ void GameOver(bool* quit, SDLStruct& sdl, Snake& s, Dot& b, Dot& r, GameTime& ti
                     double delta = (t2 - t1) * 0.001;
                     t1 = t2;
                     UpdateTime(time, delta);
+                    UpdateHistory(s, time);
                 }
             }
         }
@@ -674,14 +678,15 @@ int main(int argc, char** argv) {
                 if (InitSDL(sdl)) return 1;
                 InitGame(&quit, snake, blueDot, redDot, sdl);
                 int t1 = SDL_GetTicks();
-                double delta = (t2 - t1) * 0.001;
+                delta = (t2 - t1) * 0.001;
                 t1 = t2;
                 UpdateTime(time, delta);
+                UpdateHistory(snake, time);
             }
         }
         MoveSnake(snake, time, delta);
         Draw(sdl, snake, blueDot, redDot, time);
-        if (Collision(snake) && snake.bodyX[SNAKE_LENGTH-1] != SCREEN_WIDTH / 2) GameOver(&quit, sdl, snake, blueDot, redDot, time);
+        if (Collision(snake) && snake.bodyX[SNAKE_LENGTH - 1] != SCREEN_WIDTH / 2) GameOver(&quit, sdl, snake, blueDot, redDot, time);
         BlueDotCollision(snake, blueDot);
         RedDotCollision(snake, redDot, time);
     }
