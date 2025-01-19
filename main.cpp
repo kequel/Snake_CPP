@@ -14,16 +14,17 @@ extern "C" {
 #define SCREEN_HEIGHT 600
 #define GAME_HEIGHT 525 //height without menu
 
-#define CUBE_SIZE 20 //size of body.bmp
-#define SNAKE_LENGTH 5 //initial snake length, can not be lower than 5, multiplier of five
-#define MAX_SNAKE_LENGTH 50 //can not be lower than 5, multiplier of five
-#define HISTORY_SIZE (MAX_SNAKE_LENGTH*CUBE_SIZE)
-#define SNAKE_EXTEND 5 //how much snakes extends/shorten if it eats a dot, should be lower than SNAKE_LENGTH
-
 #define SNAKE_SPEED 200.0 //begining speed, must be minimum 200.0 for functionality
 #define MAX_SNAKE_SPEED 600.0
 #define SNAKE_SPEED_UP 0.05 //multiplier to snake speed
 #define SNAKE_SPEED_DOWN 5 //how many seconds the snakeTime goes back
+
+#define CUBE_SIZE 20 //size of body.bmp
+#define SNAKE_LENGTH 5 //initial snake length, can not be lower than 5, multiplier of five
+#define MAX_SNAKE_LENGTH 50 //can not be lower than 5, multiplier of five
+#define HISTORY_SIZE MAX_SNAKE_LENGTH*CUBE_SIZE //max index in MoveSnake method
+#define SNAKE_EXTEND 5 //how much snakes extends/shorten if it eats a dot, should be lower than SNAKE_LENGTH
+#define HISTORY_UPDATE_INTERVAL 0.003 //in seconds, how often history updates
 
 #define DOT_RADIUS 10 //dot size 
 #define RED_DOT_FREQUENCY 5 // minimum 0, maximum 10000 - lover=less frequent
@@ -81,6 +82,7 @@ struct GameTime {
     double worldTime;
     double snakeTime;
     double snakeLimitTime;
+    double lastHistoryUpdate;
 };
 
 void DrawString(SDL_Surface* screen, int x, int y, const char* text, SDL_Surface* charset) {
@@ -320,7 +322,7 @@ void BlueDotCollision(Snake& s, Dot& b) {
 void RedDotCollision(Snake& s, Dot& r, GameTime& t) {
     if (r.visible && fabs(s.bodyX[0] - r.x) <= CUBE_SIZE && fabs(s.bodyY[0] - r.y) <= CUBE_SIZE) {
         s.eaten=s.eaten+POINTS_FOR_A_DOT;
-        if (rand() % 2 && s.length >= SNAKE_LENGTH) {
+        if (rand() % 2 && s.length > SNAKE_LENGTH) {
             s.length = s.length - SNAKE_EXTEND;
         }
         else if (s.speed > SNAKE_SPEED && t.snakeTime > SNAKE_SPEED_DOWN) {
@@ -332,7 +334,7 @@ void RedDotCollision(Snake& s, Dot& r, GameTime& t) {
             }
             else t.snakeTime = t.snakeTime - SNAKE_SPEED_DOWN;
         }
-        else if (s.length >= SNAKE_LENGTH) s.length = s.length - SNAKE_EXTEND;
+        else if (s.length > SNAKE_LENGTH) s.length = s.length - SNAKE_EXTEND;
         r.visible = false;
     }
     else if (r.visible && (t.worldTime - r.spawnTime > r.duration)) {
@@ -343,14 +345,16 @@ void RedDotCollision(Snake& s, Dot& r, GameTime& t) {
 
 void MoveSnake(Snake& s, GameTime& time, double delta) {
     float currentSpeed = GetSnakeSpeed(time, s);
-    // history update(deleting useless elements)
-    for (int i = HISTORY_SIZE - 1; i > 0; i--) {
-        s.historyX[i] = s.historyX[i - 1];
-        s.historyY[i] = s.historyY[i - 1];
+
+    if (time.worldTime - time.lastHistoryUpdate >= HISTORY_UPDATE_INTERVAL) {
+        for (int i = HISTORY_SIZE - 1; i > 0; i--) {
+            s.historyX[i] = s.historyX[i - 1];
+            s.historyY[i] = s.historyY[i - 1];
+        }
+        s.historyX[0] = s.bodyX[0];
+        s.historyY[0] = s.bodyY[0];
+        time.lastHistoryUpdate = time.worldTime;
     }
-    // writting head to history
-    s.historyX[0] = s.bodyX[0];
-    s.historyY[0] = s.bodyY[0];
 
     // head movement
     s.bodyX[0] += s.velocityX * currentSpeed * delta;
@@ -376,7 +380,7 @@ void MoveSnake(Snake& s, GameTime& time, double delta) {
     for (int i = 1; i < s.length; i++) {
         float speed = (time.snakeTime * SNAKE_SPEED_UP + 1);
         if (speed > MAX_SNAKE_SPEED / SNAKE_SPEED) speed = (MAX_SNAKE_SPEED / SNAKE_SPEED);
-        int historyIndex =  i * CUBE_SIZE / (speed/3);
+        int historyIndex =  i * CUBE_SIZE /speed;
         if (historyIndex >= HISTORY_SIZE) historyIndex = HISTORY_SIZE - 1;
         s.bodyX[i] = s.historyX[historyIndex];
         s.bodyY[i] = s.historyY[historyIndex];
@@ -648,7 +652,7 @@ int main(int argc, char** argv) {
     bool quit;
     Snake snake;
     Dot blueDot, redDot;
-    GameTime time = { 0, 0, 0, 0 };
+    GameTime time = { 0, 0, 0, 0, 0, 0, 0 };
 
     if (InitSDL(sdl)) return 1;
     InitGame(&quit, snake, blueDot, redDot, sdl);
