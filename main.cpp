@@ -19,14 +19,22 @@ extern "C" {
 #define SNAKE_LENGTH 20
 #define MAX_SNAKE_LENGTH 50
 #define HISTORY_SIZE (MAX_SNAKE_LENGTH*10)
+
 #define SNAKE_SPEED 200.0 //200.0 min for full functionality, beginig speed
 #define MAX_SNAKE_SPEED 600.0
 #define SNAKE_SPEED_UP 0.05
 #define SNAKE_SPEED_DOWN 5 //in seconds
+
 #define DOT_RADIUS 10
+#define RED_DOT_FREQUENCY 5
 
 #define NEW_GAME_KEY 'n'
 #define END_GAME_KEY SDLK_ESCAPE
+
+#define BEST_SCORES_FILE "best_scores.txt"
+#define MAX_NAME_LENGTH 20
+#define NUM_BEST_SCORES 3
+
 
 struct SDLStruct {
     SDL_Window* window;
@@ -413,21 +421,170 @@ bool Collision(Snake& s) {
     return false;
 }
 
-void SpawnRedDot(Dot& r, GameTime t) {
-    if (!r.visible && (rand() % 1000 == 0)) {
-        r.x = (rand() % ((SCREEN_WIDTH / CUBE_SIZE) - 2) + 1) * CUBE_SIZE;
-        r.y = (rand() % ((GAME_HEIGHT / CUBE_SIZE) - 2) + 1) * CUBE_SIZE;
+void SpawnRedDot(Dot& r, Snake& s, GameTime t) {
+    if (!r.visible && (rand() % 10000 <= RED_DOT_FREQUENCY)) {
+        bool okPos;
+        do {
+            okPos = true;
+            r.x = (rand() % ((SCREEN_WIDTH / CUBE_SIZE) - 2) + 1) * CUBE_SIZE;
+            r.y = (rand() % ((GAME_HEIGHT / CUBE_SIZE) - 2) + 1) * CUBE_SIZE;
+
+            for (int i = 0; i < HISTORY_SIZE; i++) {
+                if (fabs(r.x - s.historyX[i]) < CUBE_SIZE &&
+                    fabs(r.y - s.historyY[i]) < CUBE_SIZE) {
+                    okPos = 0;
+                    break;
+                }
+            }
+        } while (!okPos);
         r.spawnTime = t.worldTime;
         r.visible = true;
     }
 
 }
 
+int ConvertToInt(char* line) {
+    int i = 0;
+    int x = 0;
+    while (line[i] != '\n' && line[i] != '\0') {
+        if (line[i] >= '0' && line[i] <= '9') {
+            x = x * 10 + (line[i] - '0');
+        }
+        i++;
+    }
+    return x;
+}
 
-void GameOver(bool* quit, SDLStruct& sdl, Snake& s, Dot& b, Dot& r, GameTime& time) {
+void DisplayBestScores(SDLStruct& sdl, char bestNames[NUM_BEST_SCORES][MAX_NAME_LENGTH], int bestScores[NUM_BEST_SCORES]) {
     char text[128];
     SDL_FillRect(sdl.screen, NULL, SDL_MapRGB(sdl.screen->format, 0x00, 0x00, 0x00));
-    sprintf(text, "Game Over! Press ESC to quit or N to start a new game");
+
+    sprintf(text, "Best Scores:");
+    DrawString(sdl.screen, SCREEN_WIDTH / 2 - strlen(text) * 8 / 2, GAME_HEIGHT / 2 - 40, text, sdl.charset);
+
+    for (int i = 0; i < NUM_BEST_SCORES; i++) {
+        sprintf(text, "%d. %s - %d", i + 1, bestNames[i], bestScores[i]);
+        DrawString(sdl.screen, SCREEN_WIDTH / 2 - strlen(text) * 8 / 2, GAME_HEIGHT / 2 - 20 + i * 20, text, sdl.charset);
+    }
+
+    SDL_UpdateTexture(sdl.scrtex, NULL, sdl.screen->pixels, sdl.screen->pitch);
+    SDL_RenderCopy(sdl.renderer, sdl.scrtex, NULL, NULL);
+    SDL_RenderPresent(sdl.renderer);
+}
+
+void LoadBestScores(char bestNames[NUM_BEST_SCORES][MAX_NAME_LENGTH], int bestScores[NUM_BEST_SCORES]) {
+    FILE* file = fopen(BEST_SCORES_FILE, "r");
+    char line[20];
+    int count = 0;
+
+    while (count < NUM_BEST_SCORES && fgets(bestNames[count], MAX_NAME_LENGTH, file)) {
+        bestNames[count][strcspn(bestNames[count], "\n")] = '\0';
+        if (fgets(line, sizeof(line), file)) {
+            bestScores[count] = ConvertToInt(line);
+            count++;
+        }
+        else {
+            break; 
+        }
+    }
+    fclose(file);
+}
+
+void NameView(SDLStruct& sdl, char playerName[MAX_NAME_LENGTH], char text[128]) {
+    SDL_FillRect(sdl.screen, NULL, SDL_MapRGB(sdl.screen->format, 0x00, 0x00, 0x00));
+    sprintf(text, "Congratulations! You achieved a high score!");
+    DrawString(sdl.screen, SCREEN_WIDTH / 2 - strlen(text) * 8 / 2, GAME_HEIGHT / 2 - 20, text, sdl.charset);
+    sprintf(text, "Enter your name: %s", playerName);
+    DrawString(sdl.screen, SCREEN_WIDTH / 2 - strlen(text) * 8 / 2, GAME_HEIGHT / 2, text, sdl.charset);
+
+    SDL_UpdateTexture(sdl.scrtex, NULL, sdl.screen->pixels, sdl.screen->pitch);
+    SDL_RenderCopy(sdl.renderer, sdl.scrtex, NULL, NULL);
+    SDL_RenderPresent(sdl.renderer);
+}
+
+
+void GetName(SDLStruct& sdl, char playerName[MAX_NAME_LENGTH]) {
+    char text[128];
+    SDL_Event event;
+    int nameEntered = 0;
+    playerName[0] = '\0';
+
+    NameView(sdl, playerName, text);
+    SDL_StartTextInput();
+
+    while (!nameEntered) {
+        while (SDL_PollEvent(&event)) {
+            if (event.type == SDL_TEXTINPUT) {
+                if (strlen(playerName) + strlen(event.text.text) < MAX_NAME_LENGTH - 1) {
+                    strcat(playerName, event.text.text);
+                }
+            }
+            else if (event.type == SDL_KEYDOWN && event.key.keysym.sym == SDLK_RETURN) {
+                nameEntered = 1;
+            }
+            NameView(sdl, playerName, text);
+        }
+    }
+    SDL_StopTextInput();
+}
+
+void UpdateBestScores(SDLStruct& sdl, int currentScore, char bestNames[NUM_BEST_SCORES][MAX_NAME_LENGTH], int bestScores[NUM_BEST_SCORES], char playerName[MAX_NAME_LENGTH]) {
+    int position = -1;
+    //find position
+    for (int i = 0; i < NUM_BEST_SCORES; i++) {
+        if (currentScore > bestScores[i]) {
+            position = i;
+            break;
+        }
+    }
+    if (position != -1) {
+        //back all lower scores
+        for (int i = NUM_BEST_SCORES - 1; i > position; i--) {
+            strncpy(bestNames[i], bestNames[i - 1], MAX_NAME_LENGTH - 1);
+            bestNames[i][MAX_NAME_LENGTH - 1] = '\0';
+            bestScores[i] = bestScores[i - 1];
+        }
+        bestScores[position] = currentScore;
+        strncpy(bestNames[position], playerName, MAX_NAME_LENGTH - 1);
+        bestNames[position][MAX_NAME_LENGTH - 1] = '\0';
+
+        //to file
+        FILE* file = fopen(BEST_SCORES_FILE, "w");
+        for (int i = 0; i < NUM_BEST_SCORES; i++) {
+            fprintf(file, "%s\n", bestNames[i]);
+            fprintf(file, "%d\n", bestScores[i]);
+        }
+        fclose(file);
+    }
+}
+
+void GameOver(bool* quit, SDLStruct& sdl, Snake& s, Dot& b, Dot& r, GameTime& time) {
+    char bestNames[NUM_BEST_SCORES][MAX_NAME_LENGTH] = { "" };
+    int bestScores[NUM_BEST_SCORES] = { 0 };
+    char playerName[MAX_NAME_LENGTH] = { "" };
+
+    LoadBestScores(bestNames, bestScores);
+
+    if (s.eaten > bestScores[NUM_BEST_SCORES - 1]) {
+        GetName(sdl, playerName);
+        UpdateBestScores(sdl, s.eaten, bestNames, bestScores, playerName);
+    }
+
+    bool enterClicked = false;
+    while (!enterClicked) {
+        DisplayBestScores(sdl, bestNames, bestScores);
+
+        SDL_Event event;
+        while (SDL_PollEvent(&event)) {
+            if (event.type == SDL_KEYDOWN && event.key.keysym.sym == SDLK_RETURN) {
+                enterClicked = true;
+            }
+        }
+    }
+
+    char text[128];
+    SDL_FillRect(sdl.screen, NULL, SDL_MapRGB(sdl.screen->format, 0x00, 0x00, 0x00));
+    sprintf(text, "Press ESC to quit or N to start a new game");
     DrawString(sdl.screen, SCREEN_WIDTH / 2 - strlen(text) * 8 / 2, GAME_HEIGHT / 2, text, sdl.charset);
 
     SDL_UpdateTexture(sdl.scrtex, NULL, sdl.screen->pixels, sdl.screen->pitch);
@@ -483,7 +640,7 @@ int main(int argc, char** argv) {
         double delta = (t2 - t1) * 0.001;
         t1 = t2;
         UpdateTime(time, delta);
-        SpawnRedDot(redDot, time);
+        SpawnRedDot(redDot, snake, time);
 
         SDL_Event event;
         while (SDL_PollEvent(&event)) {
@@ -508,3 +665,5 @@ int main(int argc, char** argv) {
     CleanSDL(sdl);
     return 0;
 }
+
+
