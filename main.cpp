@@ -1,4 +1,3 @@
-
 #define _USE_MATH_DEFINES
 #include <math.h>
 #include <stdio.h>
@@ -13,27 +12,27 @@ extern "C" {
 
 #define SCREEN_WIDTH 600
 #define SCREEN_HEIGHT 600
-#define GAME_HEIGHT 525
+#define GAME_HEIGHT 525 //height without menu
 
-#define CUBE_SIZE 20
-#define SNAKE_LENGTH 20
-#define MAX_SNAKE_LENGTH 50
+#define CUBE_SIZE 20 //size of body.bmp
+#define SNAKE_LENGTH 10 //initial snake length, can not be lower than 5, multiplier of five
+#define MAX_SNAKE_LENGTH 50  //can not be lower than 5, multiplier of five
 #define HISTORY_SIZE (MAX_SNAKE_LENGTH*10)
 
-#define SNAKE_SPEED 200.0 //200.0 min for full functionality, beginig speed
+#define SNAKE_SPEED 200.0 //begining speed, must be minimum 200.0 for functionality
 #define MAX_SNAKE_SPEED 600.0
-#define SNAKE_SPEED_UP 0.05
-#define SNAKE_SPEED_DOWN 5 //in seconds
+#define SNAKE_SPEED_UP 0.05 //multiplier to snake speed
+#define SNAKE_SPEED_DOWN 5 //how many seconds the snakeTime goes back
 
-#define DOT_RADIUS 10
-#define RED_DOT_FREQUENCY 5
+#define DOT_RADIUS 10 //dot size 
+#define RED_DOT_FREQUENCY 5 // minimum 0, maximum 10000 - lover=less frequent
 
 #define NEW_GAME_KEY 'n'
 #define END_GAME_KEY SDLK_ESCAPE
 
 #define BEST_SCORES_FILE "best_scores.txt"
 #define MAX_NAME_LENGTH 20
-#define NUM_BEST_SCORES 3
+#define NUM_BEST_SCORES 3 //number of best scores kept in file
 
 
 struct SDLStruct {
@@ -43,6 +42,9 @@ struct SDLStruct {
     SDL_Texture* scrtex;
     SDL_Surface* charset;
     SDL_Surface* body;
+    SDL_Surface* body2;
+    SDL_Surface* head;
+    SDL_Surface* tail;
 };
 
 struct GameParameters {
@@ -191,8 +193,12 @@ bool InitSDL(SDLStruct& sdl) {
     SDL_SetColorKey(sdl.charset, true, 0x000000);
 
     sdl.body = SDL_LoadBMP("./body.bmp");
-    if (sdl.body == NULL) {
-        printf("SDL_LoadBMP(body.bmp) error: %s\n", SDL_GetError());
+    sdl.body2 = SDL_LoadBMP("./body2.bmp");
+    sdl.head = SDL_LoadBMP("./head.bmp");
+    sdl.tail = SDL_LoadBMP("./tail.bmp");
+
+    if (sdl.body == NULL || sdl.head == NULL || sdl.tail == NULL || sdl.body2 == NULL) {
+        printf("SDL_LoadBMP error: %s\n", SDL_GetError());
         SDL_FreeSurface(sdl.charset);
         SDL_FreeSurface(sdl.screen);
         SDL_DestroyTexture(sdl.scrtex);
@@ -201,6 +207,7 @@ bool InitSDL(SDLStruct& sdl) {
         SDL_Quit();
         return 1;
     }
+
     return 0;
 }
 
@@ -208,6 +215,9 @@ void CleanSDL(SDLStruct& sdl) {
     SDL_FreeSurface(sdl.charset);
     SDL_FreeSurface(sdl.screen);
     SDL_FreeSurface(sdl.body);
+    SDL_FreeSurface(sdl.body2);
+    SDL_FreeSurface(sdl.tail);
+    SDL_FreeSurface(sdl.head);
     SDL_DestroyTexture(sdl.scrtex);
     SDL_DestroyRenderer(sdl.renderer);
     SDL_DestroyWindow(sdl.window);
@@ -364,7 +374,7 @@ void MoveSnake(Snake& s, GameTime& time, double delta) {
     for (int i = 1; i < s.length; i++) {
         float speed = (time.snakeTime * SNAKE_SPEED_UP + 1);
         if (speed > MAX_SNAKE_SPEED / SNAKE_SPEED) speed = (MAX_SNAKE_SPEED / SNAKE_SPEED);
-        int historyIndex = i * (HISTORY_SIZE / CUBE_SIZE) / speed;
+        int historyIndex = 2 * i * (HISTORY_SIZE / CUBE_SIZE) / speed;
         if (historyIndex >= HISTORY_SIZE) historyIndex = HISTORY_SIZE - 1;
         s.bodyX[i] = s.historyX[historyIndex];
         s.bodyY[i] = s.historyY[historyIndex];
@@ -377,9 +387,12 @@ void Draw(SDLStruct& sdl, Snake& s, Dot& b, Dot& r, GameTime& time) {
     SDL_FillRect(sdl.screen, NULL, SDL_MapRGB(sdl.screen->format, 0x00, 0x00, 0x00));
 
     // Snake
-    for (int i = 0; i < s.length; i++) {
-        DrawSurface(sdl.screen, sdl.body, (int)s.bodyX[i], (int)s.bodyY[i]);
+    DrawSurface(sdl.screen, sdl.head, (int)s.bodyX[0], (int)s.bodyY[0]);
+    for (int i = 1; i < s.length-1; i++) {
+        if(i%2) DrawSurface(sdl.screen, sdl.body, (int)s.bodyX[i], (int)s.bodyY[i]);
+        else DrawSurface(sdl.screen, sdl.body2, (int)s.bodyX[i], (int)s.bodyY[i]);
     }
+    DrawSurface(sdl.screen, sdl.tail, (int)s.bodyX[s.length-1], (int)s.bodyY[s.length-1]);
 
     //blueDot 
     DrawDot(sdl.screen, b, time);
@@ -653,7 +666,7 @@ int main(int argc, char** argv) {
         }
         MoveSnake(snake, time, delta);
         Draw(sdl, snake, blueDot, redDot, time);
-        if (Collision(snake) && snake.bodyX[19] != SCREEN_WIDTH / 2) GameOver(&quit, sdl, snake, blueDot, redDot, time);
+        if (Collision(snake) && snake.bodyX[SNAKE_LENGTH-1] != SCREEN_WIDTH / 2) GameOver(&quit, sdl, snake, blueDot, redDot, time);
         BlueDotCollision(snake, blueDot);
         RedDotCollision(snake, redDot, time);
     }
