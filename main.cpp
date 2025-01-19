@@ -593,7 +593,7 @@ void UpdateTime(GameTime& time, double delta) {
 }
 
 
-void GameOver(bool* quit, SDLStruct& sdl, Snake& s, Dot& b, Dot& r, GameTime& time) {
+void GameOver(bool* quit, SDLStruct& sdl, Snake& s, Dot& b, Dot& r, GameTime& time, double* delta) {
     char bestNames[NUM_BEST_SCORES][MAX_NAME_LENGTH] = { "" };
     int bestScores[NUM_BEST_SCORES] = { 0 };
     char playerName[MAX_NAME_LENGTH] = { "" };
@@ -641,9 +641,9 @@ void GameOver(bool* quit, SDLStruct& sdl, Snake& s, Dot& b, Dot& r, GameTime& ti
                     InitGame(quit, s, b, r, sdl);
                     int t1 = SDL_GetTicks();
                     int t2 = SDL_GetTicks();
-                    double delta = (t2 - t1) * 0.001;
+                    *delta = (t2 - t1) * 0.001;
                     t1 = t2;
-                    UpdateTime(time, delta);
+                    UpdateTime(time, *delta);
                     UpdateHistory(s, time);
                 }
             }
@@ -687,7 +687,7 @@ int main(int argc, char** argv) {
         }
         MoveSnake(snake, time, delta);
         Draw(sdl, snake, blueDot, redDot, time);
-        if (Collision(snake) && snake.bodyX[SNAKE_LENGTH - 1] != SCREEN_WIDTH / 2) GameOver(&quit, sdl, snake, blueDot, redDot, time);
+        if (Collision(snake) && snake.bodyX[SNAKE_LENGTH - 1] != SCREEN_WIDTH / 2) GameOver(&quit, sdl, snake, blueDot, redDot, time, &delta);
         BlueDotCollision(snake, blueDot);
         RedDotCollision(snake, redDot, time);
     }
