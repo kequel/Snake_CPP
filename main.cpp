@@ -15,9 +15,9 @@ extern "C" {
 #define GAME_HEIGHT 525 //height without menu
 
 #define CUBE_SIZE 20 //size of body.bmp
-#define SNAKE_LENGTH 10 //initial snake length, can not be lower than 5, multiplier of five
-#define MAX_SNAKE_LENGTH 50  //can not be lower than 5, multiplier of five
-#define HISTORY_SIZE (MAX_SNAKE_LENGTH*10)
+#define SNAKE_LENGTH 5 //initial snake length, can not be lower than 5, multiplier of five
+#define MAX_SNAKE_LENGTH 50 //can not be lower than 5, multiplier of five
+#define HISTORY_SIZE (MAX_SNAKE_LENGTH*CUBE_SIZE)
 
 #define SNAKE_SPEED 200.0 //begining speed, must be minimum 200.0 for functionality
 #define MAX_SNAKE_SPEED 600.0
@@ -173,7 +173,7 @@ bool InitSDL(SDLStruct& sdl) {
     SDL_RenderSetLogicalSize(sdl.renderer, SCREEN_WIDTH, SCREEN_HEIGHT);
     SDL_SetRenderDrawColor(sdl.renderer, 0, 0, 0, 255);
 
-    SDL_SetWindowTitle(sdl.window, "Snake Movement Example");
+    SDL_SetWindowTitle(sdl.window, "Snake");
 
     sdl.screen = SDL_CreateRGBSurface(0, SCREEN_WIDTH, SCREEN_HEIGHT, 32, 0x00FF0000, 0x0000FF00, 0x000000FF, 0xFF000000);
     sdl.scrtex = SDL_CreateTexture(sdl.renderer, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STREAMING, SCREEN_WIDTH, SCREEN_HEIGHT);
@@ -374,7 +374,7 @@ void MoveSnake(Snake& s, GameTime& time, double delta) {
     for (int i = 1; i < s.length; i++) {
         float speed = (time.snakeTime * SNAKE_SPEED_UP + 1);
         if (speed > MAX_SNAKE_SPEED / SNAKE_SPEED) speed = (MAX_SNAKE_SPEED / SNAKE_SPEED);
-        int historyIndex = 2 * i * (HISTORY_SIZE / CUBE_SIZE) / speed;
+        int historyIndex =  i * CUBE_SIZE / (speed/3);
         if (historyIndex >= HISTORY_SIZE) historyIndex = HISTORY_SIZE - 1;
         s.bodyX[i] = s.historyX[historyIndex];
         s.bodyY[i] = s.historyY[historyIndex];
@@ -472,6 +472,9 @@ void DisplayBestScores(SDLStruct& sdl, char bestNames[NUM_BEST_SCORES][MAX_NAME_
         DrawString(sdl.screen, SCREEN_WIDTH / 2 - strlen(text) * 8 / 2, GAME_HEIGHT / 2 - 20 + i * 20, text, sdl.charset);
     }
 
+    sprintf(text, " --- Press Enter To Continue --- ");
+    DrawString(sdl.screen, SCREEN_WIDTH / 2 - strlen(text) * 8 / 2, GAME_HEIGHT / 2 - 20 + NUM_BEST_SCORES * 20, text, sdl.charset);
+
     SDL_UpdateTexture(sdl.scrtex, NULL, sdl.screen->pixels, sdl.screen->pitch);
     SDL_RenderCopy(sdl.renderer, sdl.scrtex, NULL, NULL);
     SDL_RenderPresent(sdl.renderer);
@@ -567,6 +570,19 @@ void UpdateBestScores(SDLStruct& sdl, int currentScore, char bestNames[NUM_BEST_
 }
 
 
+void UpdateTime(GameTime& time, double delta) {
+    time.worldTime += delta;
+    time.snakeTime += delta;
+    time.fpsTimer += delta;
+    time.frames++;
+    if (time.fpsTimer > 0.5) {
+        time.fps = time.frames * 2;
+        time.frames = 0;
+        time.fpsTimer -= 0.5;
+    }
+}
+
+
 void GameOver(bool* quit, SDLStruct& sdl, Snake& s, Dot& b, Dot& r, GameTime& time) {
     char bestNames[NUM_BEST_SCORES][MAX_NAME_LENGTH] = { "" };
     int bestScores[NUM_BEST_SCORES] = { 0 };
@@ -610,24 +626,17 @@ void GameOver(bool* quit, SDLStruct& sdl, Snake& s, Dot& b, Dot& r, GameTime& ti
                 }
                 else if (event.key.keysym.sym == NEW_GAME_KEY) {
                     gameOver = false;
+                    CleanSDL(sdl);
+                    InitSDL(sdl);
                     InitGame(quit, s, b, r, sdl);
-                    time = { 0, 0, 0, 0 };
+                    int t1 = SDL_GetTicks();
+                    int t2 = SDL_GetTicks();
+                    double delta = (t2 - t1) * 0.001;
+                    t1 = t2;
+                    UpdateTime(time, delta);
                 }
             }
         }
-    }
-}
-
-
-void UpdateTime(GameTime& time, double delta) {
-    time.worldTime += delta;
-    time.snakeTime += delta;
-    time.fpsTimer += delta;
-    time.frames++;
-    if (time.fpsTimer > 0.5) {
-        time.fps = time.frames * 2;
-        time.frames = 0;
-        time.fpsTimer -= 0.5;
     }
 }
 
