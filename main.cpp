@@ -385,6 +385,7 @@ void Draw(SDLStruct& sdl, Snake& s, Dot& b, Dot& r, GameTime& time) {
     //redDot
     if (r.visible) {
         DrawDot(sdl.screen, r.x, r.y, r.color);
+
     }
 
     // Updates 
@@ -396,7 +397,7 @@ void Draw(SDLStruct& sdl, Snake& s, Dot& b, Dot& r, GameTime& time) {
 
     DrawRectangle(sdl.screen, 4, GAME_HEIGHT + 46, SCREEN_WIDTH - 8, 18, SDL_MapRGB(sdl.screen->format, 0xFF, 0x00, 0x00), SDL_MapRGB(sdl.screen->format, 0x11, 0x11, 0xCC));
     int count = (int)(time.worldTime - r.spawnTime);
-    DrawRectangle(sdl.screen, 4, GAME_HEIGHT + 46, count*(SCREEN_WIDTH - 8)/r.duration , 18, SDL_MapRGB(sdl.screen->format, 0xFF, 0x00, 0x00), SDL_MapRGB(sdl.screen->format, 0xFF, 0x00, 0x00));
+    if(r.visible) DrawRectangle(sdl.screen, 4, GAME_HEIGHT + 46, count*(SCREEN_WIDTH - 8)/r.duration , 18, SDL_MapRGB(sdl.screen->format, 0xFF, 0x00, 0x00), SDL_MapRGB(sdl.screen->format, 0xFF, 0x00, 0x00));
     SDL_UpdateTexture(sdl.scrtex, NULL, sdl.screen->pixels, sdl.screen->pitch);
     SDL_RenderCopy(sdl.renderer, sdl.scrtex, NULL, NULL);
     SDL_RenderPresent(sdl.renderer);
@@ -412,7 +413,7 @@ bool Collision(Snake& s) {
 }
 
 void SpawnRedDot(Dot& r, GameTime t) {
-    if (!r.visible && (rand() % 1000 < 5)) {
+    if (!r.visible && (rand() % 1000 == 0)) {
         r.x = (rand() % ((SCREEN_WIDTH / CUBE_SIZE) - 2) + 1) * CUBE_SIZE;
         r.y = (rand() % ((GAME_HEIGHT / CUBE_SIZE) - 2) + 1) * CUBE_SIZE;
         r.spawnTime = t.worldTime;
