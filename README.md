@@ -61,11 +61,9 @@ The goal is to survive as long as possible while eating food and avoiding collis
 2. Smooth snake movement and increasing difficulty, depending on world time, not the computer speed.
 3. Customed animated graphics with pulsating food items.
 
-## Cuts from the game:
+## Cut from the game:
 
-![cut1](img/1.png)
-![cut2](img/2.png)
-![cut3](img/3.png)
+![cut](cut_from_the_game.png)
 
 ## Installation 
 
